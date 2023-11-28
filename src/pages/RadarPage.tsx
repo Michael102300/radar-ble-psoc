@@ -1,67 +1,113 @@
 import React from "react";
 import { View, Text, Dimensions, StyleSheet } from "react-native";
-import { Circle, Svg } from "react-native-svg";
+
+import useRadar from "../hooks/useRadar";
+import Slider from "../components/Slider";
+import Radar from "../components/Radar";
+import ObjectDetected from "../components/ObjectDetected";
+import useBLE from "../hooks/useBLE";
+import Button from "../components/Button";
 
 const { width } = Dimensions.get("screen");
-const SIZE = width * 0.9;
+let SIZE = width * 0.9;
 
 const RadarPage = () => {
-  const rotateIndicator = "90deg";
+  const {
+    requestPermissions,
+    scanForPeripherals,
+    allDevices,
+    connectToDevice,
+    connectedDevice,
+    disconnectFromDevice,
+    currentDegree,
+    currentVelocity,
+    radarObject,
+  } = useBLE();
+
+  const scanForDevice = async () => {
+    const isPermissionEnabled = await requestPermissions();
+    if (isPermissionEnabled) {
+      scanForPeripherals();
+    }
+  };
+
+  const { degress } = useRadar();
+  const rotateIndicator = degress(currentDegree);
   const transformRotate = {
     transform: [{ rotate: rotateIndicator }],
   };
-  return (
-    <View>
-      <View style={{ marginTop: 10, marginLeft: 10 }}>
-        <Text> Grados</Text>
-      </View>
-      <View style={[styles.mover, transformRotate]}>
-        <View style={[styles.indicator]} />
-      </View>
-      <Svg height="100%" width="100%" viewBox="0 0 100 100">
-        <Circle
-          cx="50"
-          cy="100"
-          r="20"
-          stroke="black"
-          strokeWidth="0.5"
-          fill="transparent"
-        />
-        <Circle
-          cx="50"
-          cy="100"
-          r="40"
-          stroke="black"
-          strokeWidth="0.5"
-          fill="transparent"
-        />
-        <Circle
-          cx="50"
-          cy="100"
-          r="60"
-          stroke="black"
-          strokeWidth="0.5"
-          fill="transparent"
-        />
-        <Circle
-          cx="50"
-          cy="100"
-          r="80"
-          stroke="black"
-          strokeWidth="0.5"
-          fill="transparent"
-        />
 
-        <Circle
-          cx="50"
-          cy="100"
-          r="99"
-          stroke="black"
-          strokeWidth="0.5"
-          fill="transparent"
+  return (
+    <>
+      <View
+        style={{
+          marginTop: "2%",
+          width: "100%",
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "space-evenly",
+          alignItems: "center",
+        }}
+      >
+        <Button
+          title="SCAN"
+          backgroundColor="blue"
+          disable={Boolean(connectedDevice) || allDevices.length > 0}
+          onClick={() => scanForDevice()}
+          width={"30%"}
         />
-      </Svg>
-    </View>
+        {allDevices.length > 0 && !connectedDevice && (
+          <Button
+            key={"scan_device"}
+            title={"Connect " + String(allDevices[0]?.name)}
+            backgroundColor="red"
+            onClick={() => connectToDevice(allDevices[0])}
+            width={"50%"}
+          />
+        )}
+        {connectedDevice && (
+          <Button
+            key={"scan_device"}
+            title={"Disconnect " + String(allDevices[0]?.name)}
+            backgroundColor="red"
+            onClick={() => disconnectFromDevice()}
+            width={"50%"}
+          />
+        )}
+      </View>
+      <View>
+        <View
+          style={{
+            marginTop: 70,
+            marginLeft: 10,
+            position: "absolute",
+          }}
+        >
+          <Text> {degress(currentDegree).replace("deg", "")} °</Text>
+        </View>
+        <View style={[styles.mover, transformRotate]}>
+          <View style={[styles.indicator]} />
+        </View>
+        <Slider velocity={currentVelocity} />
+        <View
+          style={{
+            width: "100%",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          {Object.entries(radarObject).map((val: any, index) => (
+            <ObjectDetected
+              key={`object_${val[1].degree}_${index}`}
+              degressBLE={val[1].degree}
+              distanceBLE={val[1].distance}
+            />
+          ))}
+          <Radar />
+        </View>
+      </View>
+    </>
   );
 };
 
@@ -70,18 +116,19 @@ export default RadarPage;
 const styles = StyleSheet.create({
   mover: {
     position: "absolute",
-    width: SIZE,
-    height: SIZE,
-    borderRadius: SIZE / 2,
+    width: SIZE * 0.89,
+    height: SIZE * 0.89,
+    borderRadius: (SIZE * 0.89) / 2,
     alignItems: "center",
     justifyContent: "flex-start",
-    left: "5%",
-    top: "-14%",
+    left: SIZE * 0.085,
+    top: -5,
+    backgroundColor: "transparent",
   },
   indicator: {
     backgroundColor: "rgba(0,0,0,0.3)",
-    height: "40%",
-    marginTop: "10%",
+    height: "50%",
+    marginTop: "0%",
     width: 2,
     borderRadius: 8,
   },

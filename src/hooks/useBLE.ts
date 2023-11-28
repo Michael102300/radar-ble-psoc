@@ -12,6 +12,8 @@ import * as ExpoDevice from "expo-device";
 /* eslint-disable-next-line */
 import base64 from "react-native-base64";
 
+import { useProvider } from "../providers/provider";
+
 const BLE_HM_10_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
 const BLE_HM_10_CHARACTERISTIC = "0000ffe1-0000-1000-8000-00805f9b34fb";
 
@@ -24,6 +26,9 @@ interface BluetoothLowEnergyApi {
   allDevices: Device[];
   heartRate: number;
   sendData: (device: Device | null, data: string) => Promise<void>;
+  currentDegree: number;
+  currentVelocity: number;
+  radarObject: {};
 }
 
 let count: number = -1;
@@ -33,7 +38,10 @@ function useBLE(): BluetoothLowEnergyApi {
   const [allDevices, setAllDevices] = useState<Device[]>([]);
   const [connectedDevice, setConnectedDevice] = useState<Device | null>(null);
   const [heartRate, setHeartRate] = useState<number>(0);
-
+  const [currentDegree, setCurrentDegree] = useState<number>(0);
+  const [currentVelocity, setCurrentVelocity] = useState<number>(1);
+  const [radarObject, setRadarObject] = useState<{}>({});
+  const provider = useProvider();
   const requestAndroid31Permissions = async () => {
     const bluetoothScanPermission = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
@@ -99,6 +107,7 @@ function useBLE(): BluetoothLowEnergyApi {
         console.log(error);
       }
       if (device && device.name?.includes("BT05")) {
+        console.log("deviece", device.name);
         setAllDevices((prevState: Device[]) => {
           if (!isDuplicteDevice(prevState, device)) {
             return [...prevState, device];
@@ -111,6 +120,7 @@ function useBLE(): BluetoothLowEnergyApi {
     try {
       const deviceConnection = await bleManager.connectToDevice(device.id);
       setConnectedDevice(deviceConnection);
+      provider?.setConnected(deviceConnection);
       const characteristic =
         await deviceConnection.discoverAllServicesAndCharacteristics();
       console.log(characteristic);
@@ -140,10 +150,29 @@ function useBLE(): BluetoothLowEnergyApi {
       console.log("No Data was recieved");
       return -1;
     }
-    const data = base64.decode(characteristic.value).replace(" ", "");
+    const data = base64
+      .decode(characteristic.value)
+      .replace(" ", "")
+      .replace(",\n", "");
     console.log("BLE1:", data);
-    console.log("DATA NUMBER:", data.split(",")[0]);
-    console.log("DATA MODE:", data.split(",")[1]);
+    // console.log("DATA GRADE ROTATION:", data.split(",")[0]);
+    //console.log("DATA DISTANCE:", data.split(",")[1]);
+    // console.log("DATA VELOCITY:", data.split(",")[2]);
+    const object = {
+      distance: Number(data.split(",")[1]),
+      degree: Number(data.split(",")[0]),
+    };
+    setCurrentDegree(Number(data.split(",")[0]));
+    setCurrentVelocity(Number(data.split(",")[2]));
+    /* f (object.degree === 0) {
+      console.log("reset", radarObject);
+      setRadarObject([]);
+    } */
+    if (object.distance > 10 && object.distance < 400) {
+      setRadarObject((prevState) => ({
+        [object.degree]: object,
+      }));
+    }
   };
 
   const startStreamingData = async (device: Device) => {
@@ -180,6 +209,9 @@ function useBLE(): BluetoothLowEnergyApi {
     disconnectFromDevice,
     heartRate,
     sendData,
+    currentDegree,
+    currentVelocity,
+    radarObject,
   };
 }
 

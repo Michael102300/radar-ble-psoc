@@ -16,6 +16,7 @@ const Tabs = () => {
         }}
         variant="primary"
         containerStyle={{ backgroundColor: "white", bottom: 0 }}
+        iconPosition="right"
       >
         <Tab.Item
           title="Radar"
